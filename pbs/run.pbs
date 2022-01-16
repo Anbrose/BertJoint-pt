@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -N bert_joint
+#PBS -o bert_joint.out
+#PBS -e bert-joint.err
+#PBS -m abe
+#PBS -M z5142177@ad.unsw.edu.au
+
+cd /home/z5142177/LHY_ML_wk7_Hw/
+python main.py
