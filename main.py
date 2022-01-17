@@ -17,7 +17,7 @@ from tqdm.auto import tqdm
 from NQExample import NQExample
 from QA_Dataset import QA_Dataset
 from NQLoss import NQLoss
-from transformers import BertForQuestionAnswering, BertTokenizer
+from transformers import BertForQuestionAnswering, BertTokenizer, AdamW
 from BertJointModel import BertJointModel
 from absl import app
 from absl import flags
@@ -612,7 +612,7 @@ def main(argv):
     if FLAGS.run_native:
         native_prefix = "v1.0_sample_"
     else:
-        native_prefix = "v1.0/sample/"
+        native_prefix = "sample/"
 
     if FLAGS.do_train:
         data_file = DATA_FILE_PATH+native_prefix+"nq-train-sample.jsonl.gz"
@@ -624,7 +624,7 @@ def main(argv):
         train_loader = DataLoader(train_set, batch_size=FLAGS.batch_size, shuffle=True)
         model = BertJointModel().to(device)
         criterion = NQLoss()
-        optimizer = None
+        optimizer = AdamW(model.parameters(), lr=3e-5)
         train_eval(model=model, criterion=criterion, optimizer=optimizer, train_loader=train_loader)
 
         #for epoch in range(FLAGS.num_epoch):

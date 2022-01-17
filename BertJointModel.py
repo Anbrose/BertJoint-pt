@@ -15,16 +15,14 @@ class BertJointModel(nn.Module):
 
         # (last_hidden_state, pooler_output, hidden_states)
         last_hidden_state, pooler_output, hidden_states =  (outputs[0], outputs[1], outputs[2])
-
         # embedding_output = hidden_states[0]
         # attention_hidden_states = hidden_states[1:]
-
         position_logits = self.position_classifier(last_hidden_state)
-        print(position_logits.shape)
+        #print(position_logits.shape)
 
         answerType_logits = self.answerType_classifier(pooler_output)
-        print(answerType_logits)
+        #print(answerType_logits)
 
         # last hidden_shape:[batch_size,512,768] => [batch_size, seq_len, hidden_dim], batch_size不足default不会填满
         #hidden_states = torch.cat(tuple([output.hidden_states[i] for i in [-1, -2, -3, -4]]))
-        return outputs
+        return position_logits[::0], position_logits[::1], answerType_logits
