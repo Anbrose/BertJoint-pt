@@ -10,10 +10,12 @@ import re
 import random
 import torch
 import gzip
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from NQExample import NQExample
 from QA_Dataset import QA_Dataset
+from NQLoss import NQLoss
 from transformers import BertForQuestionAnswering, BertTokenizer
 from BertJointModel import BertJointModel
 from absl import app
@@ -25,6 +27,8 @@ flags.DEFINE_bool("do_train", False, "Whether to run training.")
 flags.DEFINE_bool("do_predict", False, "Whether to run eval on the dev set.")
 
 flags.DEFINE_bool("do_test", False, "Whether to run train on test set.")
+
+flags.DEFINE_bool("run_native", True, "Whether to run on native.")
 
 flags.DEFINE_integer("num_epoch", 1, "Number of epochs")
 
@@ -523,20 +527,20 @@ def convert_single_example(example):
             answer_text=answer_text,
             answer_type=answer_type)
 
-        fd = open("temp/data/input_features.txt", "a", encoding="UTF-8")
-        fd.write(json.dumps({
-            "unique_id": feature.unique_id,
-            "example_index": feature.example_index,
-            "doc_span_index": feature.doc_span_index,
-            "token_to_orig_map": feature.token_to_orig_map,
-            "input_ids": feature.input_ids,
-            "input_mask": feature.input_mask,
-            "segment_ids": feature.segment_ids,
-            "start_position": feature.start_position,
-            "end_position": feature.end_position,
-            "answer_text": feature.answer_text,
-            "answer_type": feature.answer_type
-        },indent=4))
+        # fd = open("temp/data/input_features.txt", "a", encoding="UTF-8")
+        # fd.write(json.dumps({
+        #     "unique_id": feature.unique_id,
+        #     "example_index": feature.example_index,
+        #     "doc_span_index": feature.doc_span_index,
+        #     "token_to_orig_map": feature.token_to_orig_map,
+        #     "input_ids": feature.input_ids,
+        #     "input_mask": feature.input_mask,
+        #     "segment_ids": feature.segment_ids,
+        #     "start_position": feature.start_position,
+        #     "end_position": feature.end_position,
+        #     "answer_text": feature.answer_text,
+        #     "answer_type": feature.answer_type
+        # },indent=4))
         features.append(feature)
     return features
 
@@ -545,8 +549,10 @@ def train_eval(model, criterion, optimizer, train_loader):
     for epoch in range(FLAGS.num_epoch):
         model.train()
         for i, batch in enumerate(tqdm(train_loader)):
+            print("givin batches:")
+            print(batch)
             batch = tuple(t.to(device) for t in batch)
-            result = model(batch[0], batch[1], batch[2])
+            #result = model(batch[0], batch[1], batch[2])
 
 
 #def compute_loss(logits, positions):
@@ -591,16 +597,21 @@ def prepare_dataset(data_file):
     return instances
 
 def main(argv):
+    if FLAGS.run_native:
+        native_prefix = "v1.0_sample_"
+    else:
+        native_prefix = "v1.0/sample/"
+
     if FLAGS.do_train:
-        data_file = DATA_FILE_PATH+"v1.0_sample_nq-train-sample.jsonl.gz"
+        data_file = DATA_FILE_PATH+native_prefix+"nq-train-sample.jsonl.gz"
         print("Using {} as input file.".format(data_file))
         if not (os.path.exists(data_file)):
             raise RuntimeError("Train file doesn't exist.")
         instances = prepare_dataset(data_file=data_file)
         train_set = QA_Dataset(instances)
         train_loader = DataLoader(train_set, batch_size=FLAGS.batch_size, shuffle=True)
-        model = BertJointModel()
-        criterion = None
+        model = BertJointModel().to(device)
+        criterion = NQLoss()
         optimizer = None
         train_eval(model=model, criterion=criterion, optimizer=optimizer, train_loader=train_loader)
 
@@ -609,7 +620,7 @@ def main(argv):
         read_nq_examples(input_file, is_training)
 
     if FLAGS.do_test:
-        data_file = DATA_FILE_PATH+"sample/v1.0_sample_nq-train-sample.jsonl.gz"
+        data_file = DATA_FILE_PATH+native_prefix+"sample/v1.0_sample_nq-train-sample.jsonl.gz"
         print("Using {} as input file.".format(data_file))
         if not (os.path.exists(data_file)):
             raise RuntimeError("Train file doesn't exist.")

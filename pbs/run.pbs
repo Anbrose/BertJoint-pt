@@ -5,5 +5,5 @@
 #PBS -m abe
 #PBS -M z5142177@ad.unsw.edu.au
 
-cd /home/z5142177/LHY_ML_wk7_Hw/
+cd /home/z5142177/BertJoint-pt/
 python main.py
