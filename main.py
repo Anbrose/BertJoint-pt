@@ -29,7 +29,7 @@ flags.DEFINE_bool("do_predict", False, "Whether to run eval on the dev set.")
 
 flags.DEFINE_bool("do_test", False, "Whether to run train on test set.")
 
-flags.DEFINE_bool("run_native", True, "Whether to run on native.")
+flags.DEFINE_bool("run_native", False, "Whether to run on native.")
 
 flags.DEFINE_integer("num_epoch", 1, "Number of epochs")
 
@@ -548,16 +548,17 @@ def convert_single_example(example):
 
 def train_eval(model, criterion, optimizer, train_loader):
     for epoch in range(FLAGS.num_epoch):
-        model.train()
+        #model.train()
         for i, batch in enumerate(tqdm(train_loader)):
+            print(i)
             batch = tuple(t.to(device) for t in batch)
             (predict_answer_start, predict_answer_end, predict_answerType) = model(batch[0], batch[1], batch[2])
             loss = criterion(predict_answer_start,
                              predict_answer_end,
                              predict_answerType,
-                             batch[0],
-                             batch[1],
-                             batch[2])
+                             batch[3],
+                             batch[4],
+                             batch[5])
 
             if i % 100 == 0:
                 l_time = time.asctime(time.localtime(time.time()))
@@ -597,14 +598,15 @@ def get_raw_examples(data_file):
                 break
             yield create_example_from_jsonl(line)
 
-def prepare_dataset(data_file):
+def prepare_dataset(data_files):
     instances = []
-    for raw_example in get_raw_examples(data_file):
-        # f = open("temp/data/last_example.json", "w", encoding="UTF-8")
-        # f.write(json.dumps(raw_example, indent=4))
-        # f.close()
-        for instance in process(raw_example):
-            instances.append(instance)
+    for data_file in data_files:
+        for raw_example in get_raw_examples(data_file):
+            # f = open("temp/data/last_example.json", "w", encoding="UTF-8")
+            # f.write(json.dumps(raw_example, indent=4))
+            # f.close()
+            for instance in process(raw_example):
+                instances.append(instance)
 
     return instances
 
@@ -615,7 +617,26 @@ def main(argv):
         native_prefix = "sample/"
 
     if FLAGS.do_train:
-        data_file = DATA_FILE_PATH+native_prefix+"nq-train-sample.jsonl.gz"
+        train_path = DATA_FILE_PATH+"train/"
+        if not (os.path.exists(train_path)):
+            raise RuntimeError("Train path doesn't exist.")
+        data_files = []
+        for _, _, files in os.walk(DATA_FILE_PATH+"train/"):
+            for file in files:
+                data_file = os.path.join(DATA_FILE_PATH+"train/", file)
+                data_files.append(data_file)
+        print("Using {} as input files.".format(data_files))
+        instances = prepare_dataset(data_files=data_files)
+        train_set = QA_Dataset(instances)
+        train_loader = DataLoader(train_set, batch_size=FLAGS.batch_size, shuffle=True)
+        model = BertJointModel().to(device)
+        criterion = NQLoss()
+        optimizer = AdamW(model.parameters(), lr=3e-5)
+        train_eval(model=model, criterion=criterion, optimizer=optimizer, train_loader=train_loader)
+
+        #for epoch in range(FLAGS.num_epoch):
+    if FLAGS.do_predict:
+        data_file = DATA_FILE_PATH + native_prefix + "nq-train-sample.jsonl.gz"
         print("Using {} as input file.".format(data_file))
         if not (os.path.exists(data_file)):
             raise RuntimeError("Train file doesn't exist.")
@@ -626,10 +647,6 @@ def main(argv):
         criterion = NQLoss()
         optimizer = AdamW(model.parameters(), lr=3e-5)
         train_eval(model=model, criterion=criterion, optimizer=optimizer, train_loader=train_loader)
-
-        #for epoch in range(FLAGS.num_epoch):
-    if FLAGS.do_predict:
-        read_nq_examples(input_file, is_training)
 
     if FLAGS.do_test:
         data_file = DATA_FILE_PATH+native_prefix+"sample/v1.0_sample_nq-train-sample.jsonl.gz"
