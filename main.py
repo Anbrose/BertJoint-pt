@@ -10,6 +10,7 @@ import re
 import random
 import torch
 import gzip
+import time
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -549,10 +550,21 @@ def train_eval(model, criterion, optimizer, train_loader):
     for epoch in range(FLAGS.num_epoch):
         model.train()
         for i, batch in enumerate(tqdm(train_loader)):
-            print("givin batches:")
-            print(batch)
             batch = tuple(t.to(device) for t in batch)
-            #result = model(batch[0], batch[1], batch[2])
+            (predict_answer_start, predict_answer_end, predict_answerType) = model(batch[0], batch[1], batch[2])
+            loss = criterion(predict_answer_start,
+                             predict_answer_end,
+                             predict_answerType,
+                             batch[0],
+                             batch[1],
+                             batch[2])
+
+            if i % 100 == 0:
+                l_time = time.asctime(time.localtime(time.time()))
+                print("{} Epoch: {}, batch: {}, loss: {}".format(l_time, epoch, i, loss))
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
 
 #def compute_loss(logits, positions):
