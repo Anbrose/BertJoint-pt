@@ -3,7 +3,7 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import collections
-import json
+import pickle
 import os
 import enum
 import re
@@ -11,6 +11,7 @@ import random
 import torch
 import gzip
 import time
+import json
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -23,11 +24,16 @@ from absl import app
 from absl import flags
 
 FLAGS = flags.FLAGS
+DATA_FILE_PATH = os.getenv("GOOGLE_NQ_PATH") #or "data/"
 flags.DEFINE_bool("do_train", False, "Whether to run training.")
 
 flags.DEFINE_bool("do_predict", False, "Whether to run eval on the dev set.")
 
 flags.DEFINE_bool("do_test", False, "Whether to run train on test set.")
+
+flags.DEFINE_string("prepared_path", DATA_FILE_PATH+"processed/sample_instances.pkl", "Processed data path")
+
+flags.DEFINE_string("prepare_dataset", "", "Whether to prepare dataset.")
 
 flags.DEFINE_bool("run_native", False, "Whether to run on native.")
 
@@ -40,8 +46,6 @@ flags.DEFINE_float(
 flags.DEFINE_integer("instances_limit", 200, "Maximum instance numbers")
 
 flags.DEFINE_integer("batch_size", 16, "Number of epochs")
-
-DATA_FILE_PATH = os.getenv("GOOGLE_NQ_PATH") #or "data/"
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -594,8 +598,8 @@ def get_raw_examples(data_file):
 
     with _open(data_file) as f:
         for idx, line in enumerate(tqdm(f.readlines())):
-            if idx > FLAGS.instances_limit:
-                break
+            # if idx > FLAGS.instances_limit:
+            #     break
             yield create_example_from_jsonl(line)
 
 def prepare_dataset(data_files):
@@ -608,15 +612,21 @@ def prepare_dataset(data_files):
             for instance in process(raw_example):
                 instances.append(instance)
 
-    return instances
+    dataset_path = DATA_FILE_PATH + "processed/" + FLAGS.prepare_dataset + "_instances.pkl"
+    dataset_file = open(dataset_path, "wb")
+    pickle.dump(instances, dataset_file)
+    dataset_file.close()
+    print("*** Dataset has been stored in {} successfully. ***".format(dataset_path))
+    #return instances
+
 
 def main(argv):
     if FLAGS.run_native:
         native_prefix = "v1.0_sample_"
     else:
-        native_prefix = "sample/"
+        native_prefix = "v1.0/sample/"
 
-    if FLAGS.do_train:
+    if FLAGS.prepare_dataset == "train":
         train_path = DATA_FILE_PATH+"train/"
         if not (os.path.exists(train_path)):
             raise RuntimeError("Train path doesn't exist.")
@@ -625,8 +635,17 @@ def main(argv):
             for file in files:
                 data_file = os.path.join(DATA_FILE_PATH+"train/", file)
                 data_files.append(data_file)
-        print("Using {} as input files.".format(data_files))
-        instances = prepare_dataset(data_files=data_files)
+        prepare_dataset(data_files=data_files)
+    elif FLAGS.prepare_dataset == "sample":
+        data_file = DATA_FILE_PATH + native_prefix + "nq-train-sample.jsonl.gz"
+        prepare_dataset(data_files=[data_file])
+
+    if FLAGS.do_train:
+        print("Using {} as input file.".format(FLAGS.prepared_path))
+        if not (os.path.exists(FLAGS.prepared_path)):
+            raise RuntimeError("Train file doesn't exist.")
+        train_fd = open(FLAGS.prepared_path, "rb")
+        instances = pickle.load(train_fd)
         train_set = QA_Dataset(instances)
         train_loader = DataLoader(train_set, batch_size=FLAGS.batch_size, shuffle=True)
         model = BertJointModel().to(device)

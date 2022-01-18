@@ -6,4 +6,4 @@
 #PBS -M z5142177@ad.unsw.edu.au
 
 cd /home/z5142177/BertJoint-pt/
-python main.py
+python .\main.py --include_unknowns 0.02 --prepare_dataset train
