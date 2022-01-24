@@ -6,4 +6,4 @@
 #PBS -M z5142177@ad.unsw.edu.au
 
 cd /home/z5142177/BertJoint-pt/
-python .\main.py --include_unknowns 0.02 --prepare_dataset train
+python main.py --do_train --prepared_path /srv/scratch/z5142177/google_nq/processed/train_backup.pkl
