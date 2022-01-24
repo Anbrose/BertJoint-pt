@@ -6,8 +6,14 @@ class BertJointModel(nn.Module):
     def __init__(self, model_name='bert-base-uncased'):
         super(BertJointModel, self).__init__()
         self.bert = BertModel.from_pretrained(model_name, output_hidden_states=True)
-        self.position_classifier = nn.Linear(768, 2)
-        self.answerType_classifier = nn.Linear(768, 5)
+        self.position_classifier = nn.Sequential(
+            nn.Dropout(p=0.05),
+            nn.Linear(768, 2)
+        )
+        self.answerType_classifier = nn.Sequential(
+            nn.Dropout(p=0.05),
+            nn.Linear(768, 5)
+        )
 
 
     def forward(self, input_ids, attn_masks, token_type_ids):
@@ -25,4 +31,4 @@ class BertJointModel(nn.Module):
 
         # last hidden_shape:[batch_size,512,768] => [batch_size, seq_len, hidden_dim], batch_size不足default不会填满
         #hidden_states = torch.cat(tuple([output.hidden_states[i] for i in [-1, -2, -3, -4]]))
-        return position_logits[::0], position_logits[::1], answerType_logits
+        return position_logits[:,:,0], position_logits[:,:,1], answerType_logits

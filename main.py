@@ -33,6 +33,8 @@ flags.DEFINE_bool("do_test", False, "Whether to run train on test set.")
 
 flags.DEFINE_string("prepared_path", DATA_FILE_PATH+"processed/sample_instances.pkl", "Processed data path")
 
+flags.DEFINE_string("model_path", DATA_FILE_PATH+"saved_model/", "Processed data path")
+
 flags.DEFINE_string("prepare_dataset", "", "Whether to prepare dataset.")
 
 flags.DEFINE_bool("run_native", False, "Whether to run on native.")
@@ -550,7 +552,7 @@ def convert_single_example(example):
     return features
 
 
-def train_eval(model, criterion, optimizer, train_loader):
+def train_eval(model, criterion, optimizer, train_loader, save_path):
     for epoch in range(FLAGS.num_epoch):
         #model.train()
         for i, batch in enumerate(tqdm(train_loader)):
@@ -563,13 +565,13 @@ def train_eval(model, criterion, optimizer, train_loader):
                              batch[3],
                              batch[4],
                              batch[5])
-
             if i % 100 == 0:
                 l_time = time.asctime(time.localtime(time.time()))
                 print("{} Epoch: {}, batch: {}, loss: {}".format(l_time, epoch, i, loss))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+    model.save_pretrained(FLAGS.model_path)
 
 
 #def compute_loss(logits, positions):
@@ -642,8 +644,13 @@ def main(argv):
 
     if FLAGS.do_train:
         print("Using {} as input file.".format(FLAGS.prepared_path))
+        print("The trained-model will be save to {}".format(FLAGS.model_path))
         if not (os.path.exists(FLAGS.prepared_path)):
             raise RuntimeError("Train file doesn't exist.")
+
+        if not (os.path.exists(FLAGS.model_path)):
+            raise RuntimeError("Model path doesn't exist.")
+
         train_fd = open(FLAGS.prepared_path, "rb")
         instances = pickle.load(train_fd)
         train_set = QA_Dataset(instances)

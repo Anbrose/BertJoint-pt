@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N bert_joint
 #PBS -o bert_joint.out
-#PBS -e bert-joint.err
+#PBS -e bert_joint.err
 #PBS -m abe
 #PBS -M z5142177@ad.unsw.edu.au
 

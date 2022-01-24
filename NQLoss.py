@@ -11,7 +11,7 @@ class NQLoss(nn.Module):
 
         def compute_loss(logits, labels, class_num):
             one_hot_labels = F.one_hot(labels, num_classes=class_num)
-            probs = torch.softmax(logits, -1)
+            probs = F.log_softmax(logits, -1)
             loss = -torch.mean(torch.sum(one_hot_labels * probs), -1)
             return loss
 
